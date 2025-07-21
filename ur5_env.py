@@ -51,11 +51,11 @@ class ur5(MujocoEnv):
         self.init_qpos = self.data.qpos
         self.init_qvel = self.data.qvel
 
-        self.act_mid = np.zeros(9)
-        self.act_rng = np.ones(9) * 2
+        self.act_mid = np.zeros(6)
+        self.act_rng = np.ones(6) * 2
 
         # this makes more sense when you scale it here vs the neural network because then you don't have to write that scalar multiplier for each output
-        self.action_space = spaces.Box(low=-1.0, high=1.0, shape=(9,), dtype=np.float64)
+        self.action_space = spaces.Box(low=-1.0, high=1.0, shape=(6,), dtype=np.float64)
 
     def step(self, action):
         action = np.clip(action, -1.0, 1.0)
