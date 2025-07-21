@@ -1,9 +1,18 @@
 from os import path
 import numpy as np
+
 from gymnasium import spaces
+from gymnasium.envs.mujoco.mujoco_env import MujocoEnv
+
+DEFAULT_CAMERA_CONFIG = {
+    "distance": 2.2,
+    "azimuth": 70.0,
+    "elevation": -35.0,
+    "lookat": np.array([-0.2, 0.5, 2.0]),
+}
 
 # custom MuJoCo environment in Gymnasium
-class ur5(MuJoCoEnv):
+class ur5(MujocoEnv):
     metadata = {
         "render_modes": [
             "human",
@@ -27,9 +36,7 @@ class ur5(MuJoCoEnv):
             model_path
         )
 
-        observation_space = (
-            spaces.Box(low=-np.inf, high=np.inf, shape=(9,), dtype=np.float32),
-        )
+        observation_space = spaces.Box(low=-np.inf, high=np.inf, shape=(9,), dtype=np.float32)
 
         # the super here is the MuJoCo env vs the Gymnasium Env
         super().__init__(
@@ -57,11 +64,11 @@ class ur5(MuJoCoEnv):
         action = self.act_mid + action * self.act_rng
 
         # enforce vel limits
-        ctrl_feasible = self._ctrl_velocity_limits(action)
+        # ctrl_feasible = self._ctrl_velocity_limits(action)
         # enforce position limits
-        ctrl_feasible = self._ctrl_position_limits(ctrl_feasible)
+        # ctrl_feasible = self._ctrl_position_limits(ctrl_feasible)
 
-        self.do_simulation(ctrl_feasible, self.frame_skip)
+        self.do_simulation(action, self.frame_skip)
 
         if self.render_mode == "human":
             self.render()
@@ -83,8 +90,16 @@ class ur5(MuJoCoEnv):
 
         return obs
 
+"""
     def _ctrl_velocity_limits(self, ctrl_velocity: np.ndarray):
         ctrl_feasible_vel = np.clip(
             ctrl_velocity, self.robot_vel_bound[:9, 0], self.robot_pos_bound[:9, 1]
         )
         return ctrl_feasible_vel
+
+    def _ctrl_position_limits(self, ctrl_position: np.ndarray):
+        ctrl_feasible_position = np.clip(
+            ctrl_position, self.robot_pos_bound[:9, 0], self.robot_pos_bound[:9, 1]
+        )
+        return ctrl_fesible_position
+"""
