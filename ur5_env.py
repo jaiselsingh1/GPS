@@ -4,12 +4,13 @@ import numpy as np
 from gymnasium import spaces
 from gymnasium.envs.mujoco.mujoco_env import MujocoEnv
 
+"""
 DEFAULT_CAMERA_CONFIG = {
     "distance": 2.2,
     "azimuth": 70.0,
     "elevation": -35.0,
     "lookat": np.array([-0.2, 0.5, 2.0]),
-}
+}"""
 
 # custom MuJoCo environment in Gymnasium
 class ur5(MujocoEnv):
@@ -27,7 +28,7 @@ class ur5(MujocoEnv):
         model_path="./env/assets/scene.xml",
         frame_skip = 40,
         # robot_noise_ratio: float = 0.01,
-        default_camera_config: dict = DEFAULT_CAMERA_CONFIG,
+        # default_camera_config: dict = DEFAULT_CAMERA_CONFIG,
         **kwargs,
     ):
         # path to the relative directory mapping
@@ -43,7 +44,7 @@ class ur5(MujocoEnv):
             xml_file_path,
             frame_skip,
             observation_space,
-            default_camera_config=default_camera_config,
+            # default_camera_config=default_camera_config,
             **kwargs,
             # *args or **kwargs -> * is used in python in order to expand tuples or lists or dictionaries
         )
