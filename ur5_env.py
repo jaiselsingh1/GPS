@@ -1,8 +1,10 @@
 from os import path
 import numpy as np
+import mujoco
 
 from gymnasium import spaces
 from gymnasium.envs.mujoco.mujoco_env import MujocoEnv
+from email.quoprimime import body_check
 
 """
 DEFAULT_CAMERA_CONFIG = {
@@ -75,8 +77,10 @@ class ur5(MujocoEnv):
             self.render()
 
         obs = self._get_obs()
+        reward = self.get_reward()
 
-        return obs, 0.0, False, False, {}
+
+        return obs, reward, False, False, {}
 
     def _get_obs(self):
         qpos, qvel = self.data.qpos, self.data.qvel
@@ -90,6 +94,22 @@ class ur5(MujocoEnv):
         obs = self._get_obs()
 
         return obs
+
+    def get_reward(self):
+
+        #tape_roll_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_BODY, "tape_roll")
+        #end_effector_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_BODY, "ee_finger")
+
+        # enum is a data structure that has different types, that has named access
+
+        tape_roll_xpos = self.data.body("tape_roll").xpos
+        ee_finger_xpos = self.data.body("ee_finger").xpos
+
+        pos_error = np.linalg.norm(ee_finger_xpos - tape_roll_xpos)
+        reward = -10 * pos_error
+
+        return reward
+
 
 """
     def _ctrl_velocity_limits(self, ctrl_velocity: np.ndarray):
