@@ -47,5 +47,5 @@ class MPPI:
         controls = self.U[None] + noise
         
         rollout_states, _ = rollout.rollout(self.model, self.data, states, controls, persistent_pool=True)
-
+        
 

@@ -1,26 +1,85 @@
-<mujoco model="xarm7 scene">
+<mujoco model="xarm7_pick_place">
+  <!-- Robot and YCB asset includes -->
   <include file="robot_assets/ufactory_xarm7/xarm7.xml"/>
   <include file="ycb_assets/includes/assets_002_master_chef_can.xml"/>
   <include file="ycb_assets/includes/assets_003_cracker_box.xml"/>
 
-  <statistic center="0.2 0 0.4" extent=".65"/>
+  <statistic center="0.25 0 0.45" extent="0.8"/>
 
   <visual>
-    <headlight diffuse="0.6 0.6 0.6" ambient="0.3 0.3 0.3" specular="0 0 0"/>
+    <headlight diffuse="0.65 0.65 0.65" ambient="0.30 0.30 0.30"/>
     <rgba haze="0.15 0.25 0.35 1"/>
-    <global azimuth="150" elevation="-20"/>
   </visual>
 
   <asset>
-    <texture type="skybox" builtin="gradient" rgb1="0.3 0.5 0.7" rgb2="0 0 0" width="512" height="3072"/>
-    <texture type="2d" name="groundplane" builtin="checker" mark="edge" rgb1="0.2 0.3 0.4" rgb2="0.1 0.2 0.3"
-      markrgb="0.8 0.8 0.8" width="300" height="300"/>
-    <material name="groundplane" texture="groundplane" texuniform="true" texrepeat="5 5" reflectance="0.2"/>
+    <texture name="checker" type="2d" builtin="checker" width="512" height="512"
+             rgb1="0.20 0.30 0.40" rgb2="0.10 0.15 0.20"/>
+    <material name="floor_mat" texture="checker" texrepeat="4 4" texuniform="true"/>
+    <material name="table_mat" rgba="0.86 0.86 0.86 1"/>
+    <material name="red"  rgba="0.90 0.30 0.30 1"/>
+    <material name="blue" rgba="0.25 0.45 0.95 1"/>
+    <material name="marker_g" rgba="0 1 0 1"/>
+    <material name="marker_b" rgba="0 0 1 1"/>
+
   </asset>
 
+  <default>
+    <default class="env">
+      <geom contype="1" conaffinity="1"
+            solref="0.004 1" solimp="0.95 0.99 0.001"
+            friction="1.0 0.1 0.01"/>
+    </default>
+    <!-- convenience defaults for free YCB bodies -->
+    <default class="ycb">
+      <joint type="free"/>
+      <geom type="mesh" condim="4" margin="0.002"/>
+    </default>
+  </default>
+
   <worldbody>
-    <light pos="0 0 1.5" dir="0 0 -1" directional="true"/>
-    <geom name="floor" size="0 0 0.05" type="plane" material="groundplane"/>
-    <geom type="cylinder" size=".06 .06" pos="0 0 .06" rgba="1 1 1 1"/>
+    <!-- Floor -->
+    <geom name="floor" type="plane" size="0 0 0.05" material="floor_mat"/>
+
+    <!-- Table in front of base (top @ z = 0.36 + 0.02 = 0.38) -->
+    <body name="table" pos="0.60 0.00 0.36">
+      <geom name="table_top" class="env" material="table_mat" type="box" size="0.50 0.40 0.02"/>
+      <geom class="env" material="table_mat" type="box" size="0.03 0.03 0.34" pos=" 0.44  0.34 -0.36"/>
+      <geom class="env" material="table_mat" type="box" size="0.03 0.03 0.34" pos="-0.44  0.34 -0.36"/>
+      <geom class="env" material="table_mat" type="box" size="0.03 0.03 0.34" pos=" 0.44 -0.34 -0.36"/>
+      <geom class="env" material="table_mat" type="box" size="0.03 0.03 0.34" pos="-0.44 -0.34 -0.36"/>
+
+      <!-- tiny markers for cost targets (on the table surface) -->
+      <site name="pick_site"  pos="0.12  0.00 0.03" size="0.010" material="marker_g"/>
+      <site name="place_site" pos="-0.12 0.12 0.03" size="0.010" material="marker_b"/>
+    </body>
+
+    <!-- YCB objects -->
+<!-- YCB: Master Chef Can starts at pick -->
+    <body name="can" pos="0.72 0.00 0.41">   <!-- 0.60 + 0.12, 0.00, ~0.39 + 0.02 -->
+      <freejoint/>
+      <geom name="can_geom" type="mesh" mesh="002_master_chef_can" mass="0.36"/>
+    </body>
+
+    <!-- YCB: Cracker Box -->
+    <body name="box" pos="0.60 0.18 0.41">
+      <freejoint/>
+      <geom name="box_geom" type="mesh" mesh="003_cracker_box" mass="0.40"/>
+    </body>
+
+    <!-- Visual “goal zone” at the place site  -->
+    <geom name="place_zone" type="cylinder"
+          pos="0.48 0.12 0.385" size="0.03 0.002"
+          rgba="0 0 1 0.25" contype="0" conaffinity="0"/>
+
+    <!-- Cameras -->
+    <camera name="side_cam"            pos="0.30 -1.10 0.85" euler="30 0 110" fovy="55"/>
+    <camera name="birdseye_tilted_cam" pos="0.65  0.00 1.45" euler="90 -35 0" fovy="55"/>
   </worldbody>
+
+  <!-- might need to tune this later-->
+  <contact>
+    <pair geom1="can_geom" geom2="table_top"  solref="0.004 1" solimp="0.8 0.99 0.001"/>
+    <pair geom1="box_geom" geom2="table_top"  solref="0.004 1" solimp="0.8 0.99 0.001"/>
+  </contact>
+
 </mujoco>
