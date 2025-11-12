@@ -16,6 +16,14 @@ wheels = [
 ]
 
 [[package]]
+name = "assimp"
+version = "4.1.4"
+source = { registry = "https://pypi.org/simple" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/5f/a8/ce09163d65183d4b5286261540a76ac01408db8aa6b4481806b9e8d152b7/assimp-4.1.4-py3-none-any.whl", hash = "sha256:6c73efb3a59e464e84d418d6dd100bab05dc65e9169417a9322b7fe46c5939d2", size = 29902, upload-time = "2019-02-14T04:45:12.289Z" },
+]
+
+[[package]]
 name = "asttokens"
 version = "3.0.0"
 source = { registry = "https://pypi.org/simple" }
@@ -334,6 +342,7 @@ name = "mppi-gps"
 version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
+    { name = "assimp" },
     { name = "gymnasium", extra = ["mujoco"] },
     { name = "ipython" },
     { name = "jaxtyping" },
@@ -344,6 +353,7 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
+    { name = "assimp", specifier = ">=4.1.4" },
     { name = "gymnasium", extras = ["mujoco"], specifier = ">=1.2.2" },
     { name = "ipython", specifier = ">=9.7.0" },
     { name = "jaxtyping", specifier = ">=0.3.3" },
