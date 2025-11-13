@@ -12,7 +12,7 @@ class MPPI:
     def __init__(
             self, 
             env: MujocoEnv, 
-            cost: abc.Callable, 
+            cost: abc.Callable,  # feed the planner a cost function
             num_samples: int = 5, # number of samples 
             horizon: int = 10, # number of time steps 
             noise_sigma: float = 0.2, 
@@ -39,12 +39,12 @@ class MPPI:
 
     def action(self, state: Float[np.ndarray, "d"]) -> Float[np.ndarray, "a"]:
         lam = self.lambda_
-        
+    
         states = np.repeat(state[None], self.num_samples, axis=0)
         states = np.concat([np.zeros((self.num_samples, 1)), states], axis=-1)
 
-        noise = np.random.randn(self.num_samples, self.horizon, self.act_dim) * self.noise_sigma
-        controls = self.U[None] + noise
+        noise = np.random.randn(self.num_samples, self.horizon, self.act_dim) * self.noise_sigma # (K, T, U)
+        controls = self.U[None] + noise # same as self.U[np.newaxis] or self.U.reshape(1, self.horizon, self.act_dim)
         
         rollout_states, _ = rollout.rollout(self.model, self.data, states, controls, persistent_pool=True)
         
