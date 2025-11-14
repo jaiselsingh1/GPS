@@ -101,7 +101,7 @@ class Xarm7(MujocoEnv):
         return self.get_current_obs(), {}
     
     def get_current_obs(self):
-        
+        pass
 
 
 
