@@ -38,7 +38,7 @@ class Xarm7(MujocoEnv):
                          observation_space=None,
                          **kwargs)
         
-        # cache ids 
+        # cache ids (sid = site id; bid = body id)
         self._sid_tcp   = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_SITE, self.tcp_site)
         self._sid_place = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_SITE, self.place_site)
         self._bid_can   = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_BODY, self.can_body)
@@ -50,6 +50,74 @@ class Xarm7(MujocoEnv):
         # action = 7 dim delta q 
         self.act_dim = 7 
         self.action_space = spaces.Box(low=-1.0, high=1.0, shape=(self.act_dim,), dtype=np.float32)
+
+    def step(self, action):
+        a =  np.asarray(action, dtype=np.float64.clip(-1.0,1.0))
+        dq = a * self.ctrl_scale 
+        
+        # desired dq 
+        if not hasattr(self, "q_des"):
+            self.q_des = self.data.qpos[self._arm_qpos_idx].copy()
+
+        self.q_des = self.data.q_des + dq 
+
+        # PD servo control ctrl = desired joint positions (MuJoCo applies torque = Kp(u-q) - Kd qdot)
+        u = self.data.ctrl.copy()
+        u[:self.act_dim] = self.q_des
+
+        # advance physics 
+        self.do_simulation(u, self.frame_skip)
+
+        obs = self.get_current_obs()
+        reward, info = self._default_reward()
+        terminated = bool(info.get("success", False))
+        truncated = False
+        return obs, float(reward), terminated, truncated, info
+
+    def reset_model(self, seed=None, options=None):
+        # reset model to the initial pose (zero vel)
+        self.init_qpos = getattr(self, "init_qpos", self.data.qpos.copy())
+        self.init_qvel = getattr(self, "init_qvel", self.data.qvel.copy())
+        self.set_state(self.init_qpos.copy(), np.zeros_like(self.init_qvel))
+
+        # sync q_des to the current joint angles 
+        self.q_des = self.data.qpos[self._arm_qpos_idx].copy()
+
+        # randomize the locations of the objects 
+        # rng = np.random.default_rng(seed)
+        # self._spawn_free(self._qadr_can, self._dadr_can,
+        #                  xyz=self._table_to_world([+0.12, 0.00, 0.41 - self.table_z]),
+        #                  quat=[1,0,0,0], rng_xy=0.03, rng=rng)
+        # self._spawn_free(self._qadr_box, self._dadr_box,
+        #                  xyz=self._table_to_world([ 0.00, +0.18, 0.41 - self.table_z]),
+        #                  quat=[1,0,0,0], rng_xy=0.03, rng=rng)
+
+        # build the observation space dynamically 
+        if self.observation_space is None:
+            obs = self.get_current_obs()
+            self.observation_space = spaces.Box(-np.inf, np.inf, shape=obs.shape, dtype=np.float32)
+
+        # puts into the initial pose like gym and then returns the first observation
+        return self.get_current_obs(), {}
+    
+    def get_current_obs(self):
+        
+
+
+
+
+        
+
+
+
+
+
+
+
+
+
+
+    
 
 
 
