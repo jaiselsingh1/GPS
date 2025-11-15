@@ -101,7 +101,70 @@ class Xarm7(MujocoEnv):
         return self.get_current_obs(), {}
     
     def get_current_obs(self):
-        pass
+        qpos = self.data.qpos.copy()
+        qvel = self.data.qvel.copy()
+
+        # can/box free joint states --> pose(7)=quat+xyz, vel(6)=ang+lin
+        # q is the pose whereas d is the velocity components 
+        can_q = self.data.qpos[self._qadr_can:self._qadr_can+7]
+        can_d = self.data.qvel[self._dadr_can:self._dadr_can+6]
+        box_q = self.data.qpos[self._qadr_box:self._qadr_box+7]
+        box_d = self.data.qvel[self._dadr_box:self._dadr_box+6]
+
+        obs_comp = [qpos, qvel, can_q, can_d, box_q, box_d]
+
+        if self.include_tcp:
+            tcp_p = self.data.site_xpos[self._sid_tcp].copy() # (3,)
+            tcp_quat = np.empty(4, dtype=np.float64)
+            mujoco.mju_mat2Quat(tcp_quat, self.data.site_xmat[self._sid_tcp].reshape(3,3)) # mujoco uses [w, x, y, z]
+            obs_comp += [tcp_quat, tcp_p]
+
+        if self.include_rel:
+            can_p = can_q[3:6] # can x, y and z 
+            place_p = self.data.site_xpos[self._sid_place].copy()     # place site position
+            tcp_p   = self.data.site_xpos[self._sid_tcp].copy()       # tcp position
+            obs_comp += [tcp_p - can_p, can_p - place_p] # vector from can to TCP
+
+        return np.concatenate([p.ravel() for p in obs_comp]).astype(np.float32)
+                        
+        # flatten returns a copy 
+        # ravel returns a view 
+
+    def _default_reward(self):
+        pass 
+
+    # helpers 
+    def _find_arm_hinges(self, prefix: str, count: int):
+        idxs = []
+        for j in range(self.model.njnt):
+            name = mujoco.mj_id2name(self.model, mujoco.mjtObj.mjOBJ_JOINT, j) or ""
+            if name.startswith(prefix) and self.model.jnt_type[j] == mujoco.mjtJoint.mjJNT_HINGE:
+                idxs.append(int(self.model.jnt_qposadr[j]))
+        if len(idxs) < count:
+            raise RuntimeError(f"Found {len(idxs)} hinge joints with prefix '{prefix}', need {count}")
+        return np.array(idxs[:count], dtype=np.int64)
+
+    def _freejoint_addr(self, body_id: int):
+        jid = self.model.body_jntid[body_id]
+        if jid < 0 or self.model.jnt_type[jid] != mujoco.mjtJoint.mjJNT_FREE:
+            raise RuntimeError("Body has no freejoint")
+        return int(self.model.jnt_qposadr[jid]), int(self.model.jnt_dofadr[jid])
+
+    def _spawn_free(self, qadr, dadr, *, xyz, quat, rng_xy, rng):
+        noise = np.array([rng.uniform(-rng_xy, rng_xy),
+                          rng.uniform(-rng_xy, rng_xy), 0.0])
+        p = np.asarray(xyz, dtype=np.float64) + noise
+        q = np.asarray(quat, dtype=np.float64); q /= max(np.linalg.norm(q), 1e-9)
+        self.data.qpos[qadr:qadr+4] = q
+        self.data.qpos[qadr+4:qadr+7] = p
+        self.data.qvel[dadr:dadr+6] = 0.0
+        mujoco.mj_forward(self.model, self.data)
+
+    def _table_to_world(self, rel_xyz):
+        tbid = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_BODY, self.table_body)
+        return self.model.body_pos[tbid].copy() + np.asarray(rel_xyz, dtype=np.float64)
+
+
 
 
 
