@@ -30,51 +30,23 @@ class PickPlaceConfig:
 
 
 class PickPlaceTask:
-    def __init__(self, env, config=Optional[PickPlaceConfig] = None):
+    def __init__(self, env, config: Optional[PickPlaceConfig] = None):
         self.env = env 
         self.config = config or PickPlaceConfig()
 
-        self.can = env.can_body
-        self.box = env.box_body 
-        self.tcp_site = env.tcp_site  # tool center point 
+        # cache ids 
+        self._sid_tcp   = mujoco.mj_name2id(env.model, mujoco.mjtObj.mjOBJ_SITE, env.tcp_site)
+        self._sid_place = mujoco.mj_name2id(env.model, mujoco.mjtObj.mjOBJ_SITE, env.place_site)
+        self._bid_can   = mujoco.mj_name2id(env.model, mujoco.mjtObj.mjOBJ_BODY, env.can_body)
+        self._bid_box   = mujoco.mj_name2id(env.model, mujoco.mjtObj.mjOBJ_BODY, env.box_body)
+        self._qadr_can, self._dadr_can = env._freejoint_addr(self._bid_can)
+        self._qadr_box, self._dadr_box = env._freejoint_addr(self._bid_box)
+        self._pick = self.cfg.pick_body # can or box 
+
+    def reset(self):
+        pass
+
         
-        def __init__(self, 
-                     model_path="models/assets/scene.xml", 
-                     frame_skip=10, 
-                     ctrl_scale=0.02, 
-                     include_tcp=True, 
-                     include_rel=True, 
-                     table_z=0.38, 
-                     **kwargs):
-            
-            self.ctrl_scale = float(ctrl_scale)
-            self.include_tcp = bool(include_tcp)
-            self.include_rel = bool(include_rel)
-            self.table_z     = float(table_z)
-
-            model_path = os.path.abspath(model_path)
-            assert os.path.exists(model_path), f"model XML not found: {model_path}"
-
-            super().__init__(
-                model_path = model_path, 
-                frame_skip = frame_skip,
-                default_camera_config = None, 
-                observation_space = None
-            )
-
-            # cache ids 
-            self._sid_tcp = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_SITE, self.tcp_site)
-            self._sid_place = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_SITE, self.place_site)
-            self._bid_can   = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_BODY, self.can_body)
-            self._bid_box   = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_BODY, self.box_body)
-            self._qadr_can, self._dadr_can = self._freejoint_addr(self._bid_can)
-            self._qadr_box, self._dadr_box = self._freejoint_addr(self._bid_box)
-            self._arm_qpos_idx = self._find_arm_hinges(prefix="joint", count=7)
-
-            # action: 7 dim delta q 
-            self.act_dim = 7 
-            self.action_space = spaces.Box(low=-1.0, high=1.0, shape=(self.act_dim,), dtype=np.float32)
-            
 
 
             
