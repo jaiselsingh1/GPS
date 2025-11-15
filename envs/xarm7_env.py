@@ -1,10 +1,10 @@
+import os
 import mujoco
 import numpy as np
-import gymnasium as gym 
+import gymnasium as gym
 from gymnasium.envs.mujoco.mujoco_env import MujocoEnv
 from gymnasium import spaces
 from dataclasses import dataclass
-import os
 
 class Xarm7(MujocoEnv):
     metadata = {"render_modes": ["human", "rgb_array"], "render_fps": 10}
@@ -52,14 +52,14 @@ class Xarm7(MujocoEnv):
         self.action_space = spaces.Box(low=-1.0, high=1.0, shape=(self.act_dim,), dtype=np.float32)
 
     def step(self, action):
-        a =  np.asarray(action, dtype=np.float64.clip(-1.0,1.0))
+        a  = np.asarray(action, dtype=np.float64).clip(-1.0, 1.0)
         dq = a * self.ctrl_scale 
         
         # desired dq 
         if not hasattr(self, "q_des"):
             self.q_des = self.data.qpos[self._arm_qpos_idx].copy()
 
-        self.q_des = self.data.q_des + dq 
+        self.q_des = self.q_des + dq 
 
         # PD servo control ctrl = desired joint positions (MuJoCo applies torque = Kp(u-q) - Kd qdot)
         u = self.data.ctrl.copy()
@@ -131,7 +131,21 @@ class Xarm7(MujocoEnv):
         # ravel returns a view 
 
     def _default_reward(self):
-        pass 
+        tcp_p   = self.data.site_xpos[self._sid_tcp].copy()
+        place_p = self.data.site_xpos[self._sid_place].copy()
+        can_p   = self.data.qpos[self._qadr_can+4 : self._qadr_can+7].copy()
+
+        d_reach = float(np.linalg.norm(tcp_p - can_p))
+        d_place = float(np.linalg.norm(can_p - place_p))
+
+        r = 0.5*np.exp(-4.0*d_reach) + 0.5*np.exp(-4.0*d_place)
+        lifted = can_p[2] > (self.table_z + 0.02)
+        if lifted:
+            r += 0.25
+
+        success = (d_place < 0.03) and lifted
+        info = dict(success=bool(success), d_reach=d_reach, d_place=d_place, lifted=lifted)
+        return float(r), info
 
     # helpers 
     def _find_arm_hinges(self, prefix: str, count: int):
@@ -163,49 +177,3 @@ class Xarm7(MujocoEnv):
     def _table_to_world(self, rel_xyz):
         tbid = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_BODY, self.table_body)
         return self.model.body_pos[tbid].copy() + np.asarray(rel_xyz, dtype=np.float64)
-
-
-
-
-
-
-        
-
-
-
-
-
-
-
-
-
-
-    
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-"""
-class Xarm7(MujocoEnv):
-    metadata = {"render_modes": ["human", "rgb_array"], "render_fps": 10}
-
-    def __init__(self, model_path="models/assets/scene.xml", frame_skip=10, **kwargs):
-        super().__init__(
-            model_path, 
-            frame_skip, 
-            observation_space=spaces.Box(low=-np.inf, high=np.inf, shape=(65,), dtype=np.float32) # (qpos(13) + qvel(13) + (pose 7 (quat+xyz) + vel 6) = 13 each + ee_pos − can_pos (3), can_pos − place_site (3) → 6 + End-effector (TCP): pose 7 (quat+xyz) → 7 + Task relatives: ee_pos − can_pos (3), can_pos − place_site (3) → 6
-            **kwargs, 
-        )
-"""
-
-
