@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from tasks.pick_place import PickPlaceTask, PickPlaceConfig
 
 class Xarm7(MujocoEnv):
-    metadata = {"render_modes": ["human", "rgb_array"], "render_fps": 10}
+    metadata = {"render_modes": ["human", "rgb_array"], "render_fps": 100}
 
     can_body = "can"
     box_body = "box" 
@@ -30,6 +30,7 @@ class Xarm7(MujocoEnv):
         self.include_tcp = bool(include_tcp)
         self.include_rel = bool(include_rel)
         self.table_z     = float(table_z)
+        self.observation_space = None
 
         model_path = os.path.abspath(model_path)
         assert os.path.exists(model_path), f"model XML not found: {model_path}"
@@ -104,7 +105,7 @@ class Xarm7(MujocoEnv):
             self.observation_space = spaces.Box(-np.inf, np.inf, shape=obs.shape, dtype=np.float32)
 
         # puts into the initial pose like gym and then returns the first observation
-        return self.get_current_obs(), {}
+        return self.get_current_obs() 
     
     def get_current_obs(self):
         qpos = self.data.qpos.copy()
@@ -120,9 +121,10 @@ class Xarm7(MujocoEnv):
         obs_comp = [qpos, qvel, can_q, can_d, box_q, box_d]
 
         if self.include_tcp:
-            tcp_p = self.data.site_xpos[self._sid_tcp].copy() # (3,)
+            tcp_p = self.data.site_xpos[self._sid_tcp].copy()
             tcp_quat = np.empty(4, dtype=np.float64)
-            mujoco.mju_mat2Quat(tcp_quat, self.data.site_xmat[self._sid_tcp].reshape(3,3)) # mujoco uses [w, x, y, z]
+            mat9 = np.asarray(self.data.site_xmat[self._sid_tcp], dtype=np.float64)  # length-9
+            mujoco.mju_mat2Quat(tcp_quat, mat9)
             obs_comp += [tcp_quat, tcp_p]
 
         if self.include_rel:
@@ -166,10 +168,18 @@ class Xarm7(MujocoEnv):
         return np.array(idxs[:count], dtype=np.int64)
 
     def _freejoint_addr(self, body_id: int):
-        jid = self.model.body_jntid[body_id]
-        if jid < 0 or self.model.jnt_type[jid] != mujoco.mjtJoint.mjJNT_FREE:
-            raise RuntimeError("Body has no freejoint")
-        return int(self.model.jnt_qposadr[jid]), int(self.model.jnt_dofadr[jid])
+        # joints attached to this body are in [j0, j0 + jn)
+        j0 = int(self.model.body_jntadr[body_id])
+        jn = int(self.model.body_jntnum[body_id])
+        if jn == 0:
+            raise RuntimeError("Body has no joints")
+
+        for j in range(j0, j0 + jn):
+            if self.model.jnt_type[j] == mujoco.mjtJoint.mjJNT_FREE:
+                qadr = int(self.model.jnt_qposadr[j])  # start of 7-d pose (quat+xyz)
+                dadr = int(self.model.jnt_dofadr[j])   # start of 6-d vel (ang+lin)
+                return qadr, dadr
+        raise RuntimeError("Body has no freejoint")
 
     def _spawn_free(self, qadr, dadr, *, xyz, quat, rng_xy, rng):
         noise = np.array([rng.uniform(-rng_xy, rng_xy),
