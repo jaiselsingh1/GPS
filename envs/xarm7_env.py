@@ -6,6 +6,8 @@ from gymnasium.envs.mujoco.mujoco_env import MujocoEnv
 from gymnasium import spaces
 from dataclasses import dataclass
 
+from tasks.pick_place import PickPlaceTask, PickPlaceConfig
+
 class Xarm7(MujocoEnv):
     metadata = {"render_modes": ["human", "rgb_array"], "render_fps": 10}
 
@@ -80,6 +82,10 @@ class Xarm7(MujocoEnv):
         self.init_qvel = getattr(self, "init_qvel", self.data.qvel.copy())
         self.set_state(self.init_qpos.copy(), np.zeros_like(self.init_qvel))
 
+        if not hasattr(self, "task"):
+            self.task = PickPlaceTask(self, PickPlaceConfig())
+        self.task.reset(seed=seed, randomize=True)
+
         # sync q_des to the current joint angles 
         self.q_des = self.data.qpos[self._arm_qpos_idx].copy()
 
@@ -131,21 +137,22 @@ class Xarm7(MujocoEnv):
         # ravel returns a view 
 
     def _default_reward(self):
-        tcp_p   = self.data.site_xpos[self._sid_tcp].copy()
-        place_p = self.data.site_xpos[self._sid_place].copy()
-        can_p   = self.data.qpos[self._qadr_can+4 : self._qadr_can+7].copy()
+        return self.task.reward()
+        # tcp_p   = self.data.site_xpos[self._sid_tcp].copy()
+        # place_p = self.data.site_xpos[self._sid_place].copy()
+        # can_p   = self.data.qpos[self._qadr_can+4 : self._qadr_can+7].copy()
 
-        d_reach = float(np.linalg.norm(tcp_p - can_p))
-        d_place = float(np.linalg.norm(can_p - place_p))
+        # d_reach = float(np.linalg.norm(tcp_p - can_p))
+        # d_place = float(np.linalg.norm(can_p - place_p))
 
-        r = 0.5*np.exp(-4.0*d_reach) + 0.5*np.exp(-4.0*d_place)
-        lifted = can_p[2] > (self.table_z + 0.02)
-        if lifted:
-            r += 0.25
+        # r = 0.5*np.exp(-4.0*d_reach) + 0.5*np.exp(-4.0*d_place)
+        # lifted = can_p[2] > (self.table_z + 0.02)
+        # if lifted:
+        #     r += 0.25
 
-        success = (d_place < 0.03) and lifted
-        info = dict(success=bool(success), d_reach=d_reach, d_place=d_place, lifted=lifted)
-        return float(r), info
+        # success = (d_place < 0.03) and lifted
+        # info = dict(success=bool(success), d_reach=d_reach, d_place=d_place, lifted=lifted)
+        # return float(r), info
 
     # helpers 
     def _find_arm_hinges(self, prefix: str, count: int):
