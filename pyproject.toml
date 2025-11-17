@@ -7,6 +7,7 @@ requires-python = ">=3.11"
 dependencies = [
     "assimp>=4.1.4",
     "gymnasium[mujoco]>=1.2.2",
+    "ipdb>=0.13.13",
     "ipython>=9.7.0",
     "jaxtyping>=0.3.3",
     "mujoco>=3.3.7",
@@ -15,3 +16,13 @@ dependencies = [
     "torch>=2.9.0",
     "wandb>=0.23.0",
 ]
+
+# defining a package and telling the code where it is (to be able to do mppi_gps from outside)
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.uv]
+package = true

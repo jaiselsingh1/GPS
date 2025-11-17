@@ -5,8 +5,13 @@ import gymnasium as gym
 from gymnasium.envs.mujoco.mujoco_env import MujocoEnv
 from gymnasium import spaces
 from dataclasses import dataclass
+import pathlib
 
-from tasks.pick_place import PickPlaceTask, PickPlaceConfig
+# never use relative directories where you aren't sure which folder you will be running from (anchor from relative path that you are certain of)
+cur_path = pathlib.Path(__file__) # __file__ is always set to the absolute dir 
+mppi_gps_dir = cur_path.parent.parent 
+
+from mppi_gps.tasks.pick_place import PickPlaceTask, PickPlaceConfig
 
 class Xarm7(MujocoEnv):
     metadata = {"render_modes": ["human", "rgb_array"], "render_fps": 100}
@@ -21,21 +26,23 @@ class Xarm7(MujocoEnv):
     def __init__(self,
                  model_path: str = "models/assets/scene.xml",
                  frame_skip: int = 5,
-                 ctrl_scale: float = 0.02,
+                 ctrl_scale: float = 0.01,
+                 gr_ctrl_scale: float = 255.0,
                  include_tcp: bool = True,
                  include_rel: bool = True,
                  table_z: float = 0.38,
                  **kwargs):
         self.ctrl_scale  = float(ctrl_scale)
+        self.gr_ctrl_scale = float(gr_ctrl_scale)
         self.include_tcp = bool(include_tcp)
         self.include_rel = bool(include_rel)
         self.table_z     = float(table_z)
         self.observation_space = None
 
-        model_path = os.path.abspath(model_path)
+        model_path = mppi_gps_dir/model_path
         assert os.path.exists(model_path), f"model XML not found: {model_path}"
 
-        super().__init__(model_path=model_path,
+        super().__init__(model_path=model_path.as_posix(), #as_posix() to make into str
                          frame_skip=frame_skip,
                          default_camera_config=None,
                          observation_space=None,
@@ -50,26 +57,23 @@ class Xarm7(MujocoEnv):
         self._qadr_box, self._dadr_box = self._freejoint_addr(self._bid_box)
         self._arm_qpos_idx = self._find_arm_hinges(prefix="joint", count=7)
 
-        # action = 7 dim delta q 
-        self.act_dim = 7 
+        # action = 7 dim delta q + gripper
+        self.act_dim = 8
         self.action_space = spaces.Box(low=-1.0, high=1.0, shape=(self.act_dim,), dtype=np.float32)
 
     def step(self, action):
-        a  = np.asarray(action, dtype=np.float64).clip(-1.0, 1.0)
-        dq = a * self.ctrl_scale 
+        # a  = np.asarray(action, dtype=np.float64).clip(-1.0, 1.0)
+        # dq = a * self.ctrl_scale 
+        # dq[7] = a[7] * self.gr_ctrl_scale
         
-        # desired dq 
-        if not hasattr(self, "q_des"):
-            self.q_des = self.data.qpos[self._arm_qpos_idx].copy()
-
-        self.q_des = self.q_des + dq 
+        # self.q_des = self.q_des + dq 
 
         # PD servo control ctrl = desired joint positions (MuJoCo applies torque = Kp(u-q) - Kd qdot)
-        u = self.data.ctrl.copy()
-        u[:self.act_dim] = self.q_des
+        # u = self.data.ctrl.copy()
+        # u[:self.act_dim] = self.q_des
 
         # advance physics 
-        self.do_simulation(u, self.frame_skip)
+        self.do_simulation(action, 1) #self.frame_skip)
 
         obs = self.get_current_obs()
         reward, info = self._default_reward()
@@ -81,6 +85,8 @@ class Xarm7(MujocoEnv):
         # reset model to the initial pose (zero vel)
         self.init_qpos = getattr(self, "init_qpos", self.data.qpos.copy())
         self.init_qvel = getattr(self, "init_qvel", self.data.qvel.copy())
+        # based on vis in the simulator
+        self.init_qpos[1] = -0.5 
         self.set_state(self.init_qpos.copy(), np.zeros_like(self.init_qvel))
 
         if not hasattr(self, "task"):
@@ -88,7 +94,7 @@ class Xarm7(MujocoEnv):
         self.task.reset(seed=seed, randomize=True)
 
         # sync q_des to the current joint angles 
-        self.q_des = self.data.qpos[self._arm_qpos_idx].copy()
+        self.q_des = self.data.qpos[:self.act_dim].copy()
 
         # randomize the locations of the objects 
         # rng = np.random.default_rng(seed)
@@ -124,7 +130,7 @@ class Xarm7(MujocoEnv):
             tcp_p = self.data.site_xpos[self._sid_tcp].copy()
             tcp_quat = np.empty(4, dtype=np.float64)
             mat9 = np.asarray(self.data.site_xmat[self._sid_tcp], dtype=np.float64)  # length-9
-            mujoco.mju_mat2Quat(tcp_quat, mat9)
+            mujoco.mju_mat2Quat(tcp_quat, mat9) # [w, x, y, z]
             obs_comp += [tcp_quat, tcp_p]
 
         if self.include_rel:
