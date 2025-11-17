@@ -5,7 +5,6 @@ from mppi_gps.controllers.mppi import MPPI
 from mppi_gps.envs.xarm7_env import Xarm7 
 import time
 
-
 env = Xarm7(render_mode="human")
 planner_env = Xarm7()
 
@@ -17,7 +16,26 @@ def cost(states: Float[np.ndarray, "K T S"]) -> Float[np.ndarray, "K"]:
     cost = np.sum(dist, axis=1)
     return cost
 
-controller = MPPI(planner_env, cost)
+def pick_place_cost(states: Float[np.ndarray, "K T S"]) -> Float[np.ndarray, "K"]:
+    distances = np.zeros([states.shape[0], states.shape[1]])
+    for k in range(states.shape[0]):
+        for t in range(states.shape[1]):
+            state = states[k,t] 
+            robot_qpos = state[1:9] 
+            
+            curr_qpos = planner_env.data.qpos.copy() 
+            curr_qpos[:8] = robot_qpos
+
+            planner_env.set_state(curr_qpos, planner_env.data.qvel)
+            tcp_loc = planner_env.data.site("link_tcp").xpos
+            target_loc = np.array([0.1, 0.4, 0.4]) 
+            
+            distances[k, t] = np.linalg.norm(target_loc - tcp_loc)
+    costs = np.sum(distances, axis=1)
+    return costs 
+
+
+controller = MPPI(planner_env, pick_place_cost)
 # farama env needs to reset before
 env.reset()
 for step in range(1000):
