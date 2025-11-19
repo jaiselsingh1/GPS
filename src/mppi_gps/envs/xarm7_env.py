@@ -83,27 +83,18 @@ class Xarm7(MujocoEnv):
 
     def reset_model(self, seed=None, options=None):
         # reset model to the initial pose (zero vel)
-        self.init_qpos = getattr(self, "init_qpos", self.data.qpos.copy())
-        self.init_qvel = getattr(self, "init_qvel", self.data.qvel.copy())
+        self.init_qpos = self.data.qpos.copy()
+        self.init_qvel = self.data.qvel.copy()
         # based on vis in the simulator
         self.init_qpos[1] = -0.5 
         self.set_state(self.init_qpos.copy(), np.zeros_like(self.init_qvel))
 
         if not hasattr(self, "task"):
             self.task = PickPlaceTask(self, PickPlaceConfig())
-        self.task.reset(seed=seed, randomize=True)
+        # self.task.reset(seed=seed, randomize=False)
 
         # sync q_des to the current joint angles 
         self.q_des = self.data.qpos[:self.act_dim].copy()
-
-        # randomize the locations of the objects 
-        # rng = np.random.default_rng(seed)
-        # self._spawn_free(self._qadr_can, self._dadr_can,
-        #                  xyz=self._table_to_world([+0.12, 0.00, 0.41 - self.table_z]),
-        #                  quat=[1,0,0,0], rng_xy=0.03, rng=rng)
-        # self._spawn_free(self._qadr_box, self._dadr_box,
-        #                  xyz=self._table_to_world([ 0.00, +0.18, 0.41 - self.table_z]),
-        #                  quat=[1,0,0,0], rng_xy=0.03, rng=rng)
 
         # build the observation space dynamically 
         if self.observation_space is None:
@@ -146,22 +137,7 @@ class Xarm7(MujocoEnv):
 
     def _default_reward(self):
         return self.task.reward()
-        # tcp_p   = self.data.site_xpos[self._sid_tcp].copy()
-        # place_p = self.data.site_xpos[self._sid_place].copy()
-        # can_p   = self.data.qpos[self._qadr_can+4 : self._qadr_can+7].copy()
-
-        # d_reach = float(np.linalg.norm(tcp_p - can_p))
-        # d_place = float(np.linalg.norm(can_p - place_p))
-
-        # r = 0.5*np.exp(-4.0*d_reach) + 0.5*np.exp(-4.0*d_place)
-        # lifted = can_p[2] > (self.table_z + 0.02)
-        # if lifted:
-        #     r += 0.25
-
-        # success = (d_place < 0.03) and lifted
-        # info = dict(success=bool(success), d_reach=d_reach, d_place=d_place, lifted=lifted)
-        # return float(r), info
-
+        
     # helpers 
     def _find_arm_hinges(self, prefix: str, count: int):
         idxs = []

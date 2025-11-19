@@ -17,21 +17,36 @@ def cost(states: Float[np.ndarray, "K T S"]) -> Float[np.ndarray, "K"]:
     return cost
 
 def pick_place_cost(states: Float[np.ndarray, "K T S"]) -> Float[np.ndarray, "K"]:
-    distances = np.zeros([states.shape[0], states.shape[1]])
+    traj_costs = np.zeros([states.shape[0], states.shape[1]])
+    target_lift_height = 0.50
+
     for k in range(states.shape[0]):
         for t in range(states.shape[1]):
             state = states[k,t] 
-            robot_qpos = state[1:9] 
+            # robot_qpos = state[1:9] 
             
-            curr_qpos = planner_env.data.qpos.copy() 
-            curr_qpos[:8] = robot_qpos
+            # curr_qpos = planner_env.data.qpos.copy() 
+            curr_qpos = state[1 : planner_env.model.nq+1]
 
             planner_env.set_state(curr_qpos, planner_env.data.qvel)
             tcp_loc = planner_env.data.site("link_tcp").xpos
-            target_loc = np.array([0.1, 0.4, 0.4]) 
+
+            can_loc = planner_env.data.body("can").xpos 
+            box_loc = planner_env.data.body("box").xpos 
+
+            dist_tcp_can = np.linalg.norm(can_loc - tcp_loc)
+
+            can_height = can_loc[2]
+            lift_penalty = 100 * (target_lift_height - can_height)**2
+            print(can_height, target_lift_height)
+            # target_loc = np.array([0.1, 0.4, 0.4])  # go to the top left 
             
-            distances[k, t] = np.linalg.norm(target_loc - tcp_loc)
-    costs = np.sum(distances, axis=1)
+            # joint_pen = 0.0001 * np.linalg.norm(state[1 + planner_env.model.nq :])
+
+            print(dist_tcp_can, lift_penalty)
+            traj_costs[k, t] = (dist_tcp_can + lift_penalty)
+
+    costs = np.sum(traj_costs, axis=1)
     return costs 
 
 
@@ -43,8 +58,7 @@ for step in range(1000):
     action = controller.action(state=state)
 
     env_action = action # action - env.data.qpos[:8]
-    print(env.data.qpos[1])
     # controller.action != action in farama env 
     env.step(env_action)
     env.render()
-    time.sleep(0.002)
+    # time.sleep(0.002)

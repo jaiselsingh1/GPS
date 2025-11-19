@@ -13,8 +13,8 @@ class MPPI:
             self, 
             env: MujocoEnv, 
             cost: abc.Callable,  # feed the planner a cost function
-            num_samples: int = 32, # number of samples 
-            horizon: int = 2, # number of time steps 
+            num_samples: int = 64, # number of samples 
+            horizon: int = 16, # number of time steps 
             noise_sigma: float = 0.05, 
             lambda_: float = 0.00001,
     ):
@@ -54,14 +54,12 @@ class MPPI:
         # eta is the normalizer which is just a weighted cost averaging (think sorta softmax)
         eta = np.sum(exp_costs)
         weights = exp_costs / eta
-        print(np.max(weights))
+        # print(np.max(weights))
 
         weighted_noise = np.sum(noise * weights[:, None, None], axis=0)
         updated_controls = self.U + weighted_noise
 
         self.U[:self.horizon-1,:] = updated_controls[1:,:]
         self.U[self.horizon-1, :] = updated_controls[self.horizon-1, :]
-        # print(self.U[0])
-        # print(f"updated {updated_controls[0]}")
 
         return updated_controls[0]

@@ -42,7 +42,7 @@ class PickPlaceTask:
         self._qadr_box, self._dadr_box = env._freejoint_addr(self._bid_box)
         self._pick = self.cfg.pick_body # can or box 
 
-    def reset(self, seed: Optional[int] = None, randomize: bool = True):
+    def reset(self, seed: Optional[int] = None, randomize: bool = False):
         rng = np.random.default_rng(seed)
         table_z = self.env.table_z
 
