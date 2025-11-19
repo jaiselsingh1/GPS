@@ -1,7 +1,10 @@
+# import os
+# os.environ["JAX_PLATFORM_NAME"] = "cpu"  # before importing jax or mjx
+
 import mujoco 
 import mujoco.mjx as mjx 
 import jax 
-from jax.numpy import jnp
+import jax.numpy as jnp
 from jaxtyping import Float
 import numpy as np
 from mppi_gps.controllers.mppi import MPPI 
@@ -26,7 +29,7 @@ def vec_pick_place_cost(states: Float[np.ndarray, "K T S"]) -> Float[np.ndarray,
     states_flat = states.reshape(K*T, S)
     nq = planner_env.model.nq 
 
-    qpos_all = states_flat[:, 1+nq+1]
+    qpos_all = states_flat[:, 1:nq+1]
 
     # for the forward kinematics
     tcp_locs = np.zeros((K*T, 3))
@@ -41,6 +44,10 @@ def vec_pick_place_cost(states: Float[np.ndarray, "K T S"]) -> Float[np.ndarray,
     tcp_locs = data_batch.site_xpos[:, tcp_site_id]  # (K*T, 3)
     can_locs = data_batch.xpos[:, can_body_id]  # (K*T, 3)
 
+    # convert back to numpy arrays 
+    tcp_locs = np.array(tcp_locs)
+    can_locs = np.array(can_locs)
+
     dist_tcp_can = np.linalg.norm(can_locs - tcp_locs, axis=1)
     can_heights = can_locs[:, 2]
     lift_penalty = 100 * (target_lift_height - can_heights)**2
@@ -52,6 +59,7 @@ def vec_pick_place_cost(states: Float[np.ndarray, "K T S"]) -> Float[np.ndarray,
     return trajectory_costs
 
 mjx_model = mjx.put_model(planner_env.model)
+@jax.jit 
 def compute_fk(qpos_all):
     # qpos_all shape (K*T, S)
     # takes the function lambda and then applies it into every row of qpos_all 
@@ -109,4 +117,4 @@ for step in range(1000):
     # controller.action != action in farama env 
     env.step(env_action)
     env.render()
-    # time.sleep(0.002)
+    time.sleep(0.002)
