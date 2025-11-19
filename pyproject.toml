@@ -9,6 +9,7 @@ dependencies = [
     "gymnasium[mujoco]>=1.2.2",
     "ipdb>=0.13.13",
     "ipython>=9.7.0",
+    "jax>=0.8.1",
     "jaxtyping>=0.3.3",
     "mujoco>=3.3.7",
     "numpy>=2.3.4",
