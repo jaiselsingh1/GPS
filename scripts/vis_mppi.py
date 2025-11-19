@@ -73,40 +73,32 @@ def compute_fk(qpos_all):
 
 
 def pick_place_cost(states: Float[np.ndarray, "K T S"]) -> Float[np.ndarray, "K"]:
-    traj_costs = np.zeros([states.shape[0], states.shape[1]])
     target_lift_height = 0.50
 
-    for k in range(states.shape[0]):
-        for t in range(states.shape[1]):
-            state = states[k,t] 
-            # robot_qpos = state[1:9] 
-            
-            # curr_qpos = planner_env.data.qpos.copy() 
-            curr_qpos = state[1 : planner_env.model.nq+1]
+    K, T, S = states.shape 
+    states_flat = states.reshape(K*T, S)
 
-            planner_env.set_state(curr_qpos, planner_env.data.qvel)
-            tcp_loc = planner_env.data.site("link_tcp").xpos
+    nq = planner_env.model.nq
+    qpos_all = states_flat[:, 1:nq+1]
 
-            can_loc = planner_env.data.body("can").xpos 
-            box_loc = planner_env.data.body("box").xpos 
+    tcp_locs = np.zeros((K*T, 3))
+    can_locs = np.zeros((K*T, 3))
+    for i in range(K * T):
+        planner_env.set_state(qpos_all[i], planner_env.data.qvel)
+        tcp_locs[i] = planner_env.data.site("link_tcp").xpos
+        can_locs[i] = planner_env.data.body("can").xpos
 
-            dist_tcp_can = np.linalg.norm(can_loc - tcp_loc)
-
-            can_height = can_loc[2]
-            lift_penalty = 100 * (target_lift_height - can_height)**2
-            print(can_height, target_lift_height)
-            # target_loc = np.array([0.1, 0.4, 0.4])  # go to the top left 
-            
-            # joint_pen = 0.0001 * np.linalg.norm(state[1 + planner_env.model.nq :])
-
-            print(dist_tcp_can, lift_penalty)
-            traj_costs[k, t] = (dist_tcp_can + lift_penalty)
-
-    costs = np.sum(traj_costs, axis=1)
-    return costs 
+    dist_tcp_can = np.linalg.norm(can_locs - tcp_locs, axis=1)
+    can_heights = can_locs[:, 2]
+    lift_penalty = 100 * (target_lift_height - can_heights)**2
+    
+    costs_flat = dist_tcp_can + lift_penalty
+    costs_per_timestep = costs_flat.reshape(K, T)
+    return np.sum(costs_per_timestep, axis=1)
 
 
-controller = MPPI(planner_env, vec_pick_place_cost)
+
+controller = MPPI(planner_env, pick_place_cost)
 # farama env needs to reset before
 env.reset()
 for step in range(1000):
