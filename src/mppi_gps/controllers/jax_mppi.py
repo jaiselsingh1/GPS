@@ -37,7 +37,48 @@ class MPPI_JAX:
 
         self._compile_rollout()
 
-    
+    def _compile_rollout(self) -> None:
+        dummy_state = jnp.zeros(self.mjx_model.nq + self.mjx_model.nv)
+        dummy_controls = jnp.zeros((self.num_samples, self.horizon * self.frame_skip, self.act_dim))
+        _ = self._rollout_trajectories(dummy_state, dummy_controls)
+
+    @jax.jit 
+    def _rollout_trajectories(self, 
+                              state: Float[jnp.array, "d"], 
+                              controls: Float[jnp.array, "K T a"]) -> Float[jnp.array, "K T+1 d"]:
+        K = controls.shape[0]
+        T = controls.shape[1]
+        nq = self.mjx_model.nq 
+        nv = self.mjx_model.nv 
+
+        # initialize data 
+        qpos_init = state[:nq]
+        qvel_init = state[nq:]
+
+        def init_data(i):
+            data = mjx.make_data(self.mjx_model)
+            data = data.replace(qpos=qpos_init, qvel=qvel_init)
+            return data 
+        
+        data_batch = jax.vmap(init_data)(jnp.arange(K))
+
+        def step_fn(data, ctrl):
+            data = data.replace(ctrl=ctrl)
+            data = mjx.step(self.mjx_model, ctrl)
+            # including time for now 
+            state = jnp.concatenate([[data.time], data.qpos, data.qvel])
+            return data, state
+        
+        
+
+
+
+
+
+        
+
+        
+
     
 
 
