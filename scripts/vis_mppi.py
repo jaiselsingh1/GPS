@@ -12,7 +12,7 @@ from imageio import v3
 import tqdm
 import time
 
-env = Xarm7(render_mode="rgb_array")
+env = Xarm7(render_mode="rgb array")
 planner_env = Xarm7()
 
 _mjx_model = mjx.put_model(planner_env.model) # device = jax.devices("cpu")[0])

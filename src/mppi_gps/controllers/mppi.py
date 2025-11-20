@@ -7,6 +7,7 @@ from jaxtyping import Float
 import numpy as np
 import typing
 from collections import abc
+import time 
 
 class MPPI:
     def __init__(
@@ -15,7 +16,7 @@ class MPPI:
             cost: abc.Callable,  # feed the planner a cost function
             num_samples: int = 64, # number of samples 
             horizon: int = 16, # number of time steps 
-            noise_sigma: float = 0.05, 
+            noise_sigma: float = 0.01, 
             lambda_: float = 0.00001,
     ):
         
@@ -45,7 +46,12 @@ class MPPI:
         noise = np.random.randn(self.num_samples, self.horizon, self.act_dim) * self.noise_sigma # (K, T, U)
         controls = self.U[None] + noise # same as self.U[np.newaxis] or self.U.reshape(1, self.horizon, self.act_dim)
         
-        rollout_states, _ = rollout.rollout(self.model, self.data, states, controls, persistent_pool=True)
+        frame_skip = 5
+        rollout_controls = np.repeat(controls, frame_skip, axis=1)
+
+        rollout_states, _ = rollout.rollout(self.model, self.data, states, rollout_controls, persistent_pool=True)
+        rollout_states = rollout_states[:, ::frame_skip]
+
         costs = self.cost(rollout_states)
         # minimum cost 
         beta = np.min(costs)
@@ -63,3 +69,5 @@ class MPPI:
         self.U[self.horizon-1, :] = updated_controls[self.horizon-1, :]
 
         return updated_controls[0]
+    
+
