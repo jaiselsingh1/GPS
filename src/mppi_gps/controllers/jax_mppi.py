@@ -69,7 +69,17 @@ class MPPI_JAX:
             state = jnp.concatenate([[data.time], data.qpos, data.qvel])
             return data, state
         
-        
+        # vectorize over K trajectories 
+        def rollout_one_traj(data, one_ctrl):
+            # one_ctrl is one control sequence
+            _, states = jax.lax.scan(step_fn, data, one_ctrl) # (function, initial value, sequence of inputs)
+            return states
+
+
+
+
+
+
 
 
 
