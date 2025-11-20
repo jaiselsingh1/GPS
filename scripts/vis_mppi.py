@@ -1,5 +1,5 @@
 import os
-os.environ["JAX_PLATFORM_NAME"] = "cpu"  
+# os.environ["JAX_PLATFORM_NAME"] = "cpu"  
 import mujoco 
 import mujoco.mjx as mjx 
 import jax 
@@ -7,28 +7,37 @@ import jax.numpy as jnp
 from jaxtyping import Float
 import numpy as np
 from mppi_gps.controllers.mppi import MPPI 
-from mppi_gps.envs.xarm7_env import Xarm7 
+from mppi_gps.envs.xarm7_env import Xarm7
+from imageio import v3 
+import tqdm
 import time
 
-env = Xarm7(render_mode="human")
+env = Xarm7(render_mode="rgb_array")
 planner_env = Xarm7()
 
-_mjx_model = mjx.put_model(planner_env.model, device = jax.devices("cpu")[0])
+_mjx_model = mjx.put_model(planner_env.model) # device = jax.devices("cpu")[0])
+_mjx_data = mjx.make_data(_mjx_model)
 _tcp_sid   = mujoco.mj_name2id(planner_env.model, mujoco.mjtObj.mjOBJ_SITE, "link_tcp")
 _can_bid   = mujoco.mj_name2id(planner_env.model, mujoco.mjtObj.mjOBJ_BODY, "can")
 _can_jid   = planner_env.model.body_jntadr[_can_bid]
 _can_qadr  = planner_env.model.jnt_qposadr[_can_jid]  # start of can's free-joint in qpos
 target_lift_height = 0.50
 
+# @jax.jit 
+# def _fk_tcp_batch(qpos_batch: jnp.array) -> jnp.array:
+#     # (N, nq) is the qpos batch where N is the number of qpos -> (N, 3) aka the positions of the tcp after FK 
+#     def fk_one(q):
+#         d = mjx.make_data(_mjx_model).replace(qpos=q)
+#         d = mjx.forward(_mjx_model, d) # roll out kinematics 
+#         return d.site_xpos[_tcp_sid]
+#     return jax.vmap(fk_one)(qpos_batch)
 
-@jax.jit 
-def _fk_tcp_batch(qpos_batch: jnp.array) -> jnp.array:
-    # (N, nq) is the qpos batch where N is the number of qpos -> (N, 3) aka the positions of the tcp after FK 
-    def fk_one(q):
-        d = mjx.make_data(_mjx_model).replace(qpos=q)
-        d = mjx.forward(_mjx_model, d) # roll out kinematics 
-        return d.site_xpos[_tcp_sid]
-    return jax.vmap(fk_one)(qpos_batch)
+def _fk_one(q):
+    d = _mjx_data.replace(qpos=q)
+    d = mjx.forward(_mjx_model, d)
+    return d.site_xpos[_tcp_sid]
+
+_fk_tcp_batch = jax.jit(jax.vmap(_fk_one))
 
 def vec_pick_place_cost(states: Float[np.ndarray, "K T S"]) -> Float[np.ndarray, "K"]:
     K, T, S = states.shape
@@ -37,7 +46,7 @@ def vec_pick_place_cost(states: Float[np.ndarray, "K T S"]) -> Float[np.ndarray,
     qpos_all = states_flat[:, 1:nq+1]
 
     # TCP using the batched FK 
-    tcp_locs = _fk_tcp_batch(jnp.asarray(qpos_all))
+    tcp_locs = _fk_tcp_batch(qpos_all)
     tcp_locs = np.asarray(tcp_locs) # convert back to numpy 
 
     can_locs = qpos_all[:, _can_qadr+4:_can_qadr+7]  # since in the world, you don't need FK 
@@ -46,7 +55,7 @@ def vec_pick_place_cost(states: Float[np.ndarray, "K T S"]) -> Float[np.ndarray,
     can_heights = can_locs[:, 2]
     lift_penalty = 100 * (target_lift_height - can_heights)**2
 
-    costs = (lift_penalty + dist_tcp_can).reshape(K, T).sum(axis=1)
+    costs = (dist_tcp_can).reshape(K, T).sum(axis=1)
     return costs
 
 mjx_model = mjx.put_model(planner_env.model)
@@ -91,15 +100,18 @@ def pick_place_cost(states: Float[np.ndarray, "K T S"]) -> Float[np.ndarray, "K"
 controller = MPPI(planner_env, vec_pick_place_cost)
 # farama env needs to reset before
 env.reset()
-for step in range(1000):
+frames = []
+
+for step in tqdm.tqdm(range(1000)):
     state = np.concat([env.data.qpos, env.data.qvel])
     action = controller.action(state=state)
 
     env_action = action # action - env.data.qpos[:8]
     # controller.action != action in farama env 
     env.step(env_action)
-    env.render()
-    # time.sleep(0.002)
+    frames.append(env.render())
+     # time.sleep(0.002)
+v3.imwrite("pick_place.mp4", frames, fps=250)
 
 
 
