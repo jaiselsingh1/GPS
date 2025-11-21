@@ -22,18 +22,13 @@ target_lift_height = 0.50
 # building a cost function that can be passed into the MPPI planner
 def make_cost_jax(
     planner_env: MujocoEnv, 
-    target_lift_height: float = 0.50
-) -> Callable[[Float[Array, "K T S"]], Float[Array, "K"]]:
+    target_lift_height: float = 0.50) -> Callable[[Float[Array, "K T S"]], Float[Array, "K"]]:
     
     mjx_model = mjx.put_model(planner_env.model)
 
     # pre compute the indices 
-    tcp_sid: int = mujoco.mj_name2id(
-        planner_env.model, mujoco.mjtObj.mjOBJ_SITE, "link_tcp"
-    )
-    can_bid: int = mujoco.mj_name2id(
-        planner_env.model, mujoco.mjtObj.mjOBJ_BODY, "can"
-    )
+    tcp_sid: int = mujoco.mj_name2id(planner_env.model, mujoco.mjtObj.mjOBJ_SITE, "link_tcp")
+    can_bid: int = mujoco.mj_name2id(planner_env.model, mujoco.mjtObj.mjOBJ_BODY, "can")
     can_jid: int = planner_env.model.body_jntadr[can_bid]
     can_qadr: int = planner_env.model.jnt_qposadr[can_jid]  # start of can's free joint
 
@@ -85,7 +80,7 @@ for step in tqdm.tqdm(range(1000)):
     env_action = action # action - env.data.qpos[:8]
     # controller.action != action in farama env 
     env.step(env_action)
-    env.render()
+    # env.render()
     frames.append(env.render())
      # time.sleep(0.002)
 v3.imwrite("pick_place.mp4", frames, fps=250)
