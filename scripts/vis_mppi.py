@@ -1,5 +1,5 @@
 import os
-os.environ["JAX_PLATFORM_NAME"] = "cpu"  
+# os.environ["JAX_PLATFORM_NAME"] = "cpu"  
 import mujoco 
 import mujoco.mjx as mjx 
 from gymnasium.envs.mujoco.mujoco_env import MujocoEnv
@@ -8,6 +8,7 @@ import jax.numpy as jnp
 from jaxtyping import Float, Array
 import numpy as np
 from mppi_gps.controllers.jax_mppi import MPPI_JAX
+from mppi_gps.controllers.mppi import MPPI
 from mppi_gps.envs.xarm7_env import Xarm7
 from typing import Callable
 from imageio import v3 
@@ -70,6 +71,7 @@ def make_cost_jax(
 
 
 cost_jax = make_cost_jax(planner_env, target_lift_height=target_lift_height)
+# controller = MPPI(planner_env, cost_jax)
 controller = MPPI_JAX(planner_env, cost_jax)
 
 # farama env needs to reset before
@@ -87,4 +89,4 @@ for step in tqdm.tqdm(range(1000)):
     frames.append(env.render())
     print("render complete")
     # time.sleep(0.002)
-v3.imwrite("pick_place_new.mp4", frames, fps=250)
+v3.imwrite("pick_place.mp4", frames, fps=250)
