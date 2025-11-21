@@ -3,10 +3,11 @@ import jax.numpy as jnp
 import mujoco 
 import mujoco.mjx as mjx 
 from gymnasium.envs.mujoco.mujoco_env import MujocoEnv
-from jaxtyping import Float, PRNGKeyArray
-from typing import Callable, Tuple
+from jaxtyping import Float, PRNGKeyArray, Array
+from typing import Tuple
 import numpy as np
 from collections import abc 
+from functools import partial # this is needed to avoid passing in self as an array into a jitted function
 
 class MPPI_JAX:
     def __init__(
@@ -16,7 +17,7 @@ class MPPI_JAX:
         num_samples: int = 64,
         horizon: int = 16,
         noise_sigma: float = 0.01,
-        lambda_: float = 0.00001,
+        lambda_: float = 0.1,
         frame_skip: int = 5,
     ):
         self.num_samples = num_samples 
@@ -44,12 +45,15 @@ class MPPI_JAX:
         dummy_controls = jnp.zeros((self.num_samples, self.horizon * self.frame_skip, self.act_dim))
         _ = self._rollout_trajectories(dummy_state, dummy_controls)
 
-    @jax.jit 
+        dummy_U = jnp.zeros((self.horizon, self.act_dim))
+        dummy_key = jax.random.PRNGKey(0)
+        _ = self._mppi_step(dummy_state, dummy_U, dummy_key)
+
+    @partial(jax.jit, static_argnums=0)
     def _rollout_trajectories(self, 
-                              state: Float[jnp.array, "d"], 
-                              controls: Float[jnp.array, "K T a"]) -> Float[jnp.array, "K T+1 d"]:
-        K = controls.shape[0]
-        T = controls.shape[1]
+                              state: Float[Array, "d"], 
+                              controls: Float[Array, "K T a"]) -> Float[Array, "K T+1 d"]:
+        K, T, _ = controls.shape
         nq = self.mjx_model.nq 
         nv = self.mjx_model.nv 
 
@@ -57,45 +61,36 @@ class MPPI_JAX:
         qpos_init = state[:nq]
         qvel_init = state[nq:]
 
-        def init_data(i):
-            data = mjx.make_data(self.mjx_model)
-            data = data.replace(qpos=qpos_init, qvel=qvel_init)
-            return data 
-        
-        data_batch = jax.vmap(init_data)(jnp.arange(K))
+        data0 = mjx.make_data(self.mjx_model)
+        data0 = data0.replace(qpos=qpos_init, qvel=qvel_init)
 
         def step_fn(data, ctrl):
             data = data.replace(ctrl=ctrl)
             data = mjx.step(self.mjx_model, data)
-            # including time for now 
-            state = jnp.concatenate([jnp.array([data.time]), data.qpos, data.qvel])
-            return data, state
+            state_vec = jnp.concatenate([data.qpos, data.qvel])
+            return data, state_vec
         
         # vectorize over K trajectories 
-        def rollout_one_traj(data, traj_ctrl):
+        def rollout_one_traj(traj_ctrl):
             # traj_ctrl is control for one traj (T x act_dim)
-            _, states = jax.lax.scan(step_fn, data, traj_ctrl) # (function, initial value, sequence of inputs)
+            _, states = jax.lax.scan(step_fn, data0, traj_ctrl) # (function, initial value, sequence of inputs)
 
-            init_state = jnp.concatenate([
-                jnp.array([data.time]),
-                data.qpos,
-                data.qvel
-            ])
+            init_state = jnp.concatenate([data0.qpos, data0.qvel])
             # prepend the initial state 
             states = jnp.concatenate([init_state[None], states], axis=0)
             return states
         
         # rollout all K samples 
-        states = jax.vmap(rollout_one_traj)(data_batch, controls)
+        states = jax.vmap(rollout_one_traj)(controls)
 
         return states 
     
-    @jax.jit
+    @partial(jax.jit, static_argnums=0)
     def _mppi_step(
         self, 
-        state: Float[jnp.array, "d"], 
-        U: Float[jnp.array, "T a"], 
-        key: PRNGKeyArray) -> Tuple[Float[jnp.array, "T a"], Float[jnp.array, "a"]]:
+        state: Float[Array, "d"], 
+        U: Float[Array, "T a"], 
+        key: PRNGKeyArray) -> Tuple[Float[Array, "T a"], Float[Array, "a"]]:
         # returns the updated control sequence and the next action to take
 
         # generate noise 
@@ -120,7 +115,7 @@ class MPPI_JAX:
         weights = exp_costs / jnp.sum(exp_costs)
 
         # weighted update
-        weighted_noise = jnp.sum(noise * weights[:, None, None], axis=0)
+        weighted_noise = jnp.einsum('k,kta->ta', weights, noise)
         updated_controls = U + weighted_noise
 
         # shift the control sequence 
@@ -132,7 +127,7 @@ class MPPI_JAX:
         action = updated_controls[0]
         return new_U, action
     
-    def action(self, state: Float[jnp.array, "d"]) -> Float[jnp.array, "a"]:
+    def action(self, state: Float[np.ndarray, "d"]) -> Float[np.ndarray, "a"]:
         state_jax = jnp.array(state)
         self.key, subkey = jax.random.split(self.key)
 
@@ -140,43 +135,6 @@ class MPPI_JAX:
         new_U, action = self._mppi_step(state_jax, self.U, subkey)
         # update control seq 
         self.U = new_U 
-        action = np.array(action)
+        action_np = np.array(action)
 
-        return action 
-
-
-
-
-
-        
-
-
-
-
-
-
-        
-        
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-        
-
-        
-
-    
-
-
-        
+        return action_np
