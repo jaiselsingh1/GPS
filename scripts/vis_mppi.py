@@ -41,13 +41,16 @@ def vec_pick_place_cost(states: Float[Array, "K T S"]) -> Float[Array, "K"]:
     qpos_all = states_flat[:, 1:nq+1]
 
     tcp_locs = _fk_tcp_batch(qpos_all)
-    can_locs = qpos_all[:, _can_qadr + 4 : _can_qadr + 7]
+    can_locs = qpos_all[:, _can_qadr: _can_qadr + 3]
 
     dist_tcp_can = jnp.linalg.norm(can_locs - tcp_locs, axis=1)
+    import ipdb 
+    ipdb.set_trace()
+
     can_heights = can_locs[:, 2]
     lift_penalty = 100.0 * (target_lift_height - can_heights) ** 2
 
-    costs_flat = dist_tcp_can + lift_penalty
+    costs_flat = dist_tcp_can # + lift_penalty 
     costs = costs_flat.reshape((K, T)).sum(axis=1)
     return costs
 
