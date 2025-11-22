@@ -215,3 +215,6 @@ wheels/
 
 # Virtual environments
 .venv
+
+# just avoid uploading videos
+scripts/*.mp4

@@ -30,7 +30,7 @@ _can_qadr  = planner_env.model.jnt_qposadr[_can_jid]  # start of can's free-join
 def _fk_one(q: Float[Array, "nq"]) -> Float[Array, "3"]:
     d = _mjx_data.replace(qpos=q)
     d = mjx.forward(_mjx_model,d)
-    return d.site.xpos[_tcp_sid]
+    return d.site_xpos[_tcp_sid]
 
 _fk_tcp_batch = jax.vmap(_fk_one)
 
@@ -102,8 +102,8 @@ def make_cost_jax(
 
 target_lift_height = 0.50
 cost_jax = make_cost_jax(planner_env, target_lift_height=target_lift_height)
-# controller = MPPI(planner_env, cost_jax)
-controller = MPPI_JAX(planner_env, cost_jax)
+controller = MPPI(planner_env, vec_pick_place_cost)
+# controller = MPPI_JAX(planner_env, cost_jax)
 
 # farama env needs to reset before
 env.reset()
@@ -120,4 +120,4 @@ for step in tqdm.tqdm(range(1000)):
     frames.append(env.render())
     print("render complete")
     # time.sleep(0.002)
-v3.imwrite("jax_pick_place.mp4", frames, fps=250)
+v3.imwrite("pick_place.mp4", frames, fps=250)
