@@ -1,5 +1,6 @@
 import os
 # os.environ["JAX_PLATFORM_NAME"] = "cpu"  
+os.environ["MUJOCO_GL"] = "egl"
 import mujoco 
 import mujoco.mjx as mjx 
 from gymnasium.envs.mujoco.mujoco_env import MujocoEnv
@@ -18,7 +19,37 @@ import time
 env = Xarm7(render_mode="rgb_array")
 planner_env = Xarm7()
 
-target_lift_height = 0.50
+_mjx_model = mjx.put_model(planner_env.model) # device = jax.devices("cpu")[0])
+nq = planner_env.model.nq
+_mjx_data = mjx.make_data(_mjx_model)
+_tcp_sid   = mujoco.mj_name2id(planner_env.model, mujoco.mjtObj.mjOBJ_SITE, "link_tcp")
+_can_bid   = mujoco.mj_name2id(planner_env.model, mujoco.mjtObj.mjOBJ_BODY, "can")
+_can_jid   = planner_env.model.body_jntadr[_can_bid]
+_can_qadr  = planner_env.model.jnt_qposadr[_can_jid]  # start of can's free-joint in qpos
+
+def _fk_one(q: Float[Array, "nq"]) -> Float[Array, "3"]:
+    d = _mjx_data.replace(qpos=q)
+    d = mjx.forward(_mjx_model,d)
+    return d.site.xpos[_tcp_sid]
+
+_fk_tcp_batch = jax.vmap(_fk_one)
+
+@jax.jit
+def vec_pick_place_cost(states: Float[Array, "K T S"]) -> Float[Array, "K"]:
+    K, T, S = states.shape
+    states_flat = states.reshape((K*T, S))
+    qpos_all = states_flat[:, 1:nq+1]
+
+    tcp_locs = _fk_tcp_batch(qpos_all)
+    can_locs = qpos_all[:, _can_qadr + 4 : _can_qadr + 7]
+
+    dist_tcp_can = jnp.linalg.norm(can_locs - tcp_locs, axis=1)
+    can_heights = can_locs[:, 2]
+    lift_penalty = 100.0 * (target_lift_height - can_heights) ** 2
+
+    costs_flat = dist_tcp_can + lift_penalty
+    costs = costs_flat.reshape((K, T)).sum(axis=1)
+    return costs
 
 # building a cost function that can be passed into the MPPI planner
 def make_cost_jax(
@@ -69,7 +100,7 @@ def make_cost_jax(
     
     return cost
 
-
+target_lift_height = 0.50
 cost_jax = make_cost_jax(planner_env, target_lift_height=target_lift_height)
 # controller = MPPI(planner_env, cost_jax)
 controller = MPPI_JAX(planner_env, cost_jax)
@@ -89,4 +120,4 @@ for step in tqdm.tqdm(range(1000)):
     frames.append(env.render())
     print("render complete")
     # time.sleep(0.002)
-v3.imwrite("pick_place.mp4", frames, fps=250)
+v3.imwrite("jax_pick_place.mp4", frames, fps=250)
