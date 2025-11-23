@@ -1,15 +1,31 @@
-import mujoco
-import numpy as np
 import time
+import pathlib
+import numpy as np
 from mppi_gps.envs.xarm7_env import Xarm7
+from mppi_gps.envs.robosuite_xarm7 import make_pick_place_model
 
-env = Xarm7(render_mode="human")
+cur_path = pathlib.Path(__file__)
+mppi_gps_dir = cur_path.parent.parent
+
+# point to the actual models/assets location
+xml_rel_path = "src/mppi_gps/models/assets/scene_robosuite.xml"
+xml_abs_path = mppi_gps_dir / xml_rel_path
+
+# Create the directory if it doesn't exist (just in case)
+xml_abs_path.parent.mkdir(parents=True, exist_ok=True)
+
+# build & save robosuite world -> XML
+make_pick_place_model(save_xml_path=xml_abs_path.as_posix())
+
+# point Xarm7 at that XML - use the path relative to src/mppi_gps
+env = Xarm7(model_path="models/assets/scene_robosuite.xml", render_mode="human")
+
 steps = 1000
 obs, _ = env.reset()
-
 action = np.zeros_like(env.action_space.sample())
+
 for i in range(steps):
-    if i % 10 == 0:
+    if i % 10 == 0 and action.shape[0] > 7:
         action[7] = 255.0
     env.step(action)
     time.sleep(0.002)
