@@ -15,6 +15,7 @@ dependencies = [
     "mujoco>=3.3.7",
     "numpy>=2.3.4",
     "robosuite>=1.5.1",
+    "robosuite-models>=1.0.0",
     "stable-baselines3>=2.7.0",
     "torch>=2.9.0",
     "tqdm>=4.67.1",

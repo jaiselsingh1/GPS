@@ -217,4 +217,4 @@ wheels/
 .venv
 
 # just avoid uploading videos
-scripts/*.mp4
+*.mp4
