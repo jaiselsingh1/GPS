@@ -1006,6 +1006,7 @@ dependencies = [
     { name = "jax" },
     { name = "jaxtyping" },
     { name = "mujoco" },
+    { name = "mujoco-mjx" },
     { name = "numpy" },
     { name = "robosuite" },
     { name = "stable-baselines3" },
@@ -1024,6 +1025,7 @@ requires-dist = [
     { name = "jax", specifier = ">=0.8.1" },
     { name = "jaxtyping", specifier = ">=0.3.3" },
     { name = "mujoco", specifier = ">=3.3.7" },
+    { name = "mujoco-mjx", specifier = ">=3.3.7" },
     { name = "numpy", specifier = ">=2.3.4" },
     { name = "robosuite", specifier = ">=1.5.1" },
     { name = "stable-baselines3", specifier = ">=2.7.0" },
@@ -1060,6 +1062,24 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/09/a9/46adccd9bbb19a0924f41090028594bcd33c321b56a54a65f5d06f40be94/mujoco-3.3.7-cp313-cp313-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:7b844d21b25c550a17c08fdf29dc3e00b8ac4156d59332f438d6cfb810310650", size = 6396380, upload-time = "2025-10-14T17:34:21.54Z" },
     { url = "https://files.pythonhosted.org/packages/e7/a9/2633ce0a5d11d884fcc8420279d58888d41a0bd08002efe14d334394e26e/mujoco-3.3.7-cp313-cp313-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:1657312f4f4591ade7c7a21187065e3ab16e6a45d9c8c6abe8772fdc4b585789", size = 6853525, upload-time = "2025-10-14T17:34:24.629Z" },
     { url = "https://files.pythonhosted.org/packages/d0/e1/b0247dbc147b03576357bfcfb7f842f32b166c2c60f02c09049a6fdebadb/mujoco-3.3.7-cp313-cp313-win_amd64.whl", hash = "sha256:11f3f6154aa7f72f5929f150800c7098904f91eb0b7cdefacb6fdf7edd3704f8", size = 5366053, upload-time = "2025-10-14T17:34:26.716Z" },
+]
+
+[[package]]
+name = "mujoco-mjx"
+version = "3.3.7"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "absl-py" },
+    { name = "etils", extra = ["epath"] },
+    { name = "jax" },
+    { name = "jaxlib" },
+    { name = "mujoco" },
+    { name = "scipy" },
+    { name = "trimesh" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/26/28/3748ac7baf7cddd81af3e2296c85e6a83fab7318c845589670cee5c98a0e/mujoco_mjx-3.3.7.tar.gz", hash = "sha256:2bd1d07a7e3824c366a38f7335a29f321fc6e98e13cd1111c523858f74a31a3f", size = 6876211, upload-time = "2025-10-14T17:35:00.575Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/e0/32/2aad9e9107fcc6dd6cc503e74ad78e2a6ed74a55cbc2498b3a5eac9104f0/mujoco_mjx-3.3.7-py3-none-any.whl", hash = "sha256:e56a7e979f4c23edabd7a422f9927968b5b7ef6382a07face9bdfc42006e8bb8", size = 6959457, upload-time = "2025-10-14T17:34:58.135Z" },
 ]
 
 [[package]]
@@ -2239,6 +2259,18 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/eb/79/72064e6a701c2183016abbbfedaba506d81e30e232a68c9f0d6f6fcd1574/traitlets-5.14.3.tar.gz", hash = "sha256:9ed0579d3502c94b4b3732ac120375cda96f923114522847de4b3bb98b96b6b7", size = 161621, upload-time = "2024-04-19T11:11:49.746Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/00/c0/8f5d070730d7836adc9c9b6408dec68c6ced86b304a9b26a14df072a6e8c/traitlets-5.14.3-py3-none-any.whl", hash = "sha256:b74e89e397b1ed28cc831db7aea759ba6640cb3de13090ca145426688ff1ac4f", size = 85359, upload-time = "2024-04-19T11:11:46.763Z" },
+]
+
+[[package]]
+name = "trimesh"
+version = "4.10.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "numpy" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/36/f3/bd9b67575bddcc7e4cca927461bd58006455208a2331262f7c9de0db8bb3/trimesh-4.10.0.tar.gz", hash = "sha256:502710a0b1f0317816507828a41e0cb1c595b895e344567fa42cd47388c2b72b", size = 831462, upload-time = "2025-11-24T19:57:51.693Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/ec/81/951a108396aa850a096be95cd9ccd38ef9f33ae35b40b512be975e2c994d/trimesh-4.10.0-py3-none-any.whl", hash = "sha256:bdafda66d5c8a9564d7d82f5673c06f8b4fc51c86de959fafee0e169fcfea12a", size = 736626, upload-time = "2025-11-24T19:57:49.158Z" },
 ]
 
 [[package]]
