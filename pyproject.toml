@@ -13,6 +13,7 @@ dependencies = [
     "jax>=0.8.1",
     "jaxtyping>=0.3.3",
     "mujoco>=3.3.7",
+    "mujoco-mjx>=3.3.7",
     "numpy>=2.3.4",
     "robosuite>=1.5.1",
     "robosuite-models>=1.0.0",
