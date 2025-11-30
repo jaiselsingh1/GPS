@@ -104,8 +104,8 @@ def make_cost_jax(
 
 target_lift_height = 0.50
 cost_jax = make_cost_jax(planner_env, target_lift_height=target_lift_height)
-# controller = MPPI(planner_env, vec_pick_place_cost)
-controller = MPPI_JAX(planner_env, cost_jax)
+controller = MPPI(planner_env, vec_pick_place_cost)
+# controller = MPPI_JAX(planner_env, cost_jax)
 
 # farama env needs to reset before
 env.reset()
@@ -122,4 +122,4 @@ for step in tqdm.tqdm(range(1000)):
     frames.append(env.render())
     print("render complete")
     # time.sleep(0.002)
-v3.imwrite("jax_pick_place.mp4", frames, fps=250)
+v3.imwrite("pick_place.mp4", frames, fps=250)

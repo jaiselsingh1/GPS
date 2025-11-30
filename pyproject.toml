@@ -14,6 +14,7 @@ dependencies = [
     "jaxtyping>=0.3.3",
     "mujoco>=3.3.7",
     "mujoco-mjx>=3.3.7",
+    "mujoco-warp",
     "numpy>=2.3.4",
     "robosuite>=1.5.1",
     "robosuite-models>=1.0.0",
@@ -32,3 +33,6 @@ where = ["src"]
 
 [tool.uv]
 package = true
+
+[tool.uv.sources]
+mujoco-warp = { git = "https://github.com/google-deepmind/mujoco_warp.git" }

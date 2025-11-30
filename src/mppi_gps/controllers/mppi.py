@@ -8,6 +8,7 @@ import numpy as np
 import typing
 from collections import abc
 import time 
+import timeit
 
 class MPPI:
     def __init__(
@@ -48,8 +49,12 @@ class MPPI:
         
         frame_skip = 5
         rollout_controls = np.repeat(controls, frame_skip, axis=1)
-
+        start_rollout = time.time()
         rollout_states, _ = rollout.rollout(self.model, self.data, states, rollout_controls, persistent_pool=True)
+        end_rollout = time.time()
+        print(f'rollout_time {end_rollout - start_rollout}')
+
+        math_time = time.time()
         rollout_states = rollout_states[:, ::frame_skip]
 
         costs = self.cost(rollout_states)
@@ -67,6 +72,8 @@ class MPPI:
 
         self.U[:self.horizon-1,:] = updated_controls[1:,:]
         self.U[self.horizon-1, :] = updated_controls[self.horizon-1, :]
+        finish_math = time.time()
+        print(f"time to do math {finish_math - math_time}")
 
         return updated_controls[0]
     
