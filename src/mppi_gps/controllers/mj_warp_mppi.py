@@ -13,10 +13,10 @@ class MjwData:
     T: int
     
 
-def make_data(env: MujocoEnv, K: int, T: int) -> MjwData:
+def make_data(env: MujocoEnv, K: int, T: int, njmax: int) -> MjwData:
     data = MjwData(
         model = mjw.put_model(env.model), 
-        data = mjw.make_data(env.model, K),
+        data = mjw.make_data(env.model, nworld = K, njmax = njmax),
         K = K, 
         T = T
     )
@@ -29,47 +29,49 @@ def mjw_rollout(mjw_data: MjwData, init_state: Float[Array, "d"], controls: Floa
     init_qpos = init_state[: mjw_data.model.nq]
     init_qvel = init_state[mjw_data.model.nq :]
 
-    wp.copy(mjw_data.data.qpos, wp.array([init_qpos for k in range(K)],dtype=float)) # doing k parallel rollouts 
-    wp.copy(mjw_data.data.qvel, wp.array([init_qvel for k in range(T)],dtype=float))
+    wp.copy(mjw_data.data.qpos, wp.array([init_qpos for k in range(K)],dtype=wp.float32)) # doing k parallel rollouts 
+    wp.copy(mjw_data.data.qvel, wp.array([init_qvel for k in range(K)],dtype=wp.float32))
 
     d = init_state.shape[0]
-    rollout_states = wp.zeros((K, T+1, d), dtype=float)
+    rollout_states = wp.zeros((K, T+1, d), dtype=wp.float32)
 
     wp_controls = wp.array(controls, dtype=wp.float32)
     
+    wp.copy(rollout_states[:, 0], wp.array([init_state for k in range(K)], dtype=wp.float32)) # need to make sure that the first state is captured instead of being after the first control
     for t in range(T):
-        mjw_data.data.ctrl = wp_controls[t]
+        mjw_data.data.ctrl = wp_controls[:, t, :]
         
         mjw.step(mjw_data.model, mjw_data.data)
         qpos = mjw_data.data.qpos 
         qvel = mjw_data.data.qvel
-        wp.copy(rollout_states[t,: mjw_data.model.nq], qpos)
-        wp.copy(rollout_states[t, mjw_data.model.nq: ], qvel)
+        
+        wp.copy(rollout_states[:, t+1,: mjw_data.model.nq], qpos)
+        wp.copy(rollout_states[:, t+1, mjw_data.model.nq: ], qvel)
 
     return rollout_states
 
 
-def capture_rollout(mjw_data: MjwData, init_state: Float[Array, "d"], controls: Float[Array, "K T a"]) -> wp.ScopedCapture:
-    with wp.ScopeCapture() as capture:
-        K, T = mjw_data.K, mjw_data.T
-        init_qpos = init_state[: mjw_data.model.nq]
-        init_qvel = init_state[mjw_data.model.nq :]
+# def capture_rollout(mjw_data: MjwData, init_state: Float[Array, "d"], controls: Float[Array, "K T a"]) -> wp.ScopedCapture:
+#     with wp.ScopeCapture() as capture:
+#         K, T = mjw_data.K, mjw_data.T
+#         init_qpos = init_state[: mjw_data.model.nq]
+#         init_qvel = init_state[mjw_data.model.nq :]
 
-        wp.copy(mjw_data.data.qpos, wp.array([init_qpos for k in range(K)],dtype=float)) # doing k parallel rollouts 
-        wp.copy(mjw_data.data.qvel, wp.array([init_qvel for k in range(T)],dtype=float))
+#         wp.copy(mjw_data.data.qpos, wp.array([init_qpos for k in range(K)],dtype=float)) # doing k parallel rollouts 
+#         wp.copy(mjw_data.data.qvel, wp.array([init_qvel for k in range(T)],dtype=float))
 
-        d = init_state.shape[0]
-        rollout_states = wp.zeros((K, T+1, d), dtype=float)
+#         d = init_state.shape[0]
+#         rollout_states = wp.zeros((K, T+1, d), dtype=float)
 
-        wp_controls = wp.array(controls)
+#         wp_controls = wp.array(controls)
         
-        for t in T:
-            mjw_data.data.ctrl = wp_controls[t]
+#         for t in T:
+#             mjw_data.data.ctrl = wp_controls[t]
 
-            mjw.step(mjw_data.model, mjw_data.data)
-            qpos = mjw_data.data.qpos 
-            qvel = mjw_data.data.qvel
-            rollout_states[t,: mjw_data.model.nq] = qpos 
-            rollout_states[t, mjw_data.model.nq: ] = qvel
+#             mjw.step(mjw_data.model, mjw_data.data)
+#             qpos = mjw_data.data.qpos 
+#             qvel = mjw_data.data.qvel
+#             rollout_states[t,: mjw_data.model.nq] = qpos 
+#             rollout_states[t, mjw_data.model.nq: ] = qvel
 
 
