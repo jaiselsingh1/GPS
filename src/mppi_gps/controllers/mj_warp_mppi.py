@@ -13,10 +13,10 @@ class MjwData:
     T: int
     
 
-def make_data(env: MujocoEnv, K: int, T: int, njmax: int) -> MjwData:
+def make_data(env: MujocoEnv, K: int, T: int, njmax: int, nconmax: int) -> MjwData:
     data = MjwData(
         model = mjw.put_model(env.model), 
-        data = mjw.make_data(env.model, nworld = K, njmax = njmax),
+        data = mjw.make_data(env.model, nworld = K, njmax = njmax, nconmax = nconmax),
         K = K, 
         T = T
     )

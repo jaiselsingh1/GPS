@@ -17,6 +17,3 @@ controls = np.zeros((K, T, env.model.nu), dtype=np.float32)
 rollout_states = mj_warp_mppi.mjw_rollout(data, init_state, controls)
 
 np_states = rollout_states.numpy()
-print(np_states[1, 1])
-print("new state")
-print(np_states[0, 1])
