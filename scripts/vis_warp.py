@@ -9,7 +9,7 @@ from mppi_gps.envs.xarm7_env import Xarm7
 env = Xarm7()
 K = 2
 T = 1
-data = mj_warp_mppi.make_data(env, K, T, njmax = 121)
+data = mj_warp_mppi.make_data(env, K, T, njmax = 500, nconmax = 100)
 
 init_state = np.zeros((env.model.nq + env.model.nv), dtype=np.float32)
 controls = np.zeros((K, T, env.model.nu), dtype=np.float32)
